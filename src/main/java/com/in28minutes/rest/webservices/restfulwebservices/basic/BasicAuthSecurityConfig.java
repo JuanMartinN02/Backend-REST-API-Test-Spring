@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -20,29 +21,26 @@ public class BasicAuthSecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // 1.- authenticate all requests
-        http.authorizeHttpRequests(
-                auth -> auth.anyRequest().authenticated()
-        );
+        return http
+                // 1. Disable CSRF for stateless API
+                .csrf(AbstractHttpConfigurer::disable)
 
-        // 2.- Enable basic authetication (pop-up asking for credentials)
-        http.httpBasic(Customizer.withDefaults());
+                // 2. Set stateless session management
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
-        // 3.- have stateless Rest API
-//        A stateless REST API is an application programming interface where the server does not store any
-//        information (state) about the client session between requests. Every single incoming
-//        HTTP request is completely independent and must contain all the information necessary for the server
-//        to understand and process it.
-        http.sessionManagement(
-                session -> session.sessionCreationPolicy(
-                        SessionCreationPolicy.STATELESS));
+                // 3. Configure authorization rules
+                .cors(Customizer.withDefaults()) // Handles OPTIONS preflight requests automatically
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().authenticated()
+                )
 
-        // 4.- disabling
-//        Because the vulnerability mechanism (automatic browser cookie attachment)
-//        isn't present, CSRF protection is redundant and can be safely disabled.
-        http.csrf().disable();
+                // 4. Enable HTTP Basic Auth
+                .httpBasic(Customizer.withDefaults())
 
-        return http.build();
+                // 5. Build and return the filter chain
+                .build();
     }
 
 }
